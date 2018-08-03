@@ -8,6 +8,8 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.tmatesoft.svn.core.SVNException;
 import org.tmatesoft.svn.core.SVNLogEntry;
 import org.tmatesoft.svn.core.SVNLogEntryPath;
@@ -19,6 +21,7 @@ import org.tmatesoft.svn.core.wc.SVNWCUtil;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystem;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -60,21 +63,47 @@ public class IncrementMojo  extends AbstractMojo {
     @Parameter( defaultValue = "${project.resources}",readonly = true, required = true )
     private List<Resource> resources;
 
+    @Parameter( defaultValue = "${basedir}/src/main/webapp", required = true )
+    private File warSourceDirectory;
+
+    @Parameter
+    private String warSourceExcludes;
+
+    @Parameter( defaultValue = "${project}", readonly = true, required = true )
+    private MavenProject project;
+
     private List<String> relativePaths = new ArrayList<String>();
     private List<IncrementFileModel> incrementFiles = new ArrayList<IncrementFileModel>();
 
     public void execute() throws MojoExecutionException, MojoFailureException {
 
+        try {
+
+          // Xpp3Dom src = (Xpp3Dom)   project.getPlugin("org.apache.maven.plugins:maven-war-plugin").getConfiguration();
+        FileUtils.deleteDirectory(new File(incrementRelease));
+        getLog().info("Delete release directory '"+incrementRelease+"'");
             getRelativePath(sourceDirectory.getPath());
             for (Resource resource:resources) {
                 getRelativePath(resource.getDirectory());
             }
-        try {
+
             for (SVNLogEntry entry:getLogs()) {
+                getLog().info("revision: '"+entry.getRevision()+"'");
                for ( Map.Entry<String, SVNLogEntryPath> changedPath:entry.getChangedPaths().entrySet()) {
                    IncrementFileModel fileModel = getIncrementFile(changedPath.getKey());
+                   fileModel.setRevision(entry.getRevision());
                    if (fileModel.isUseful()) {
-                       incrementFiles.add(fileModel);
+                       if (!fileModel.isExists()){
+                           getLog().info("Add Increment File '" + fileModel.getRelativePath() + "'");
+                           incrementFiles.add(fileModel);
+                       }
+                       else {
+                           getLog().info("Skip already exists '" + fileModel.getRelativePath()  + "'");
+                       }
+                   }
+                   else if (!fileModel.isExists())
+                   {
+                       getLog().info("Skip useless '" + fileModel.getFilePath()  + "'");
                    }
                }
             }
@@ -108,7 +137,7 @@ public class IncrementMojo  extends AbstractMojo {
     private void getRelativePath(String fullPath){
         String path = fullPath.replace(basedir.getPath(),"");
         if (!relativePaths.contains(path)){
-            getLog().info("add RelativePath '"+path+"'");
+            getLog().debug("Add RelativePath '"+path+"'");
             relativePaths.add(path);
         }
     }
@@ -119,10 +148,14 @@ public class IncrementMojo  extends AbstractMojo {
         IncrementFileModel model = new IncrementFileModel();
         for (String path:relativePaths) {
             int index = filePath.indexOf(path);
-            if (index > 0){
-                getLog().info("add IncrementFile '"+filePath.substring(index+path.length())+"'");
-               model.setUseful(true);
-               model.setRelativePath(filePath.substring(index+path.length()));
+            model.setFilePath(filePath);
+            if (index > 0 ){
+                model.setRelativePath(filePath.substring(index + path.length()));
+                model.setUseful(true);
+                if (!filterRepeatFile(filePath.substring(index+path.length()))) {
+                    model.setExists(true);
+
+                }
             }
         }
         return model;
@@ -134,8 +167,26 @@ public class IncrementMojo  extends AbstractMojo {
         }
         File file = new File(outputDirectory.getPath()+filePath);
         if (file.exists()){
-            FileUtils.copyFile(file,new File(incrementRelease+filePath));
+            if (!file.isDirectory()) {
+                getLog().debug("Copying '" + filePath + "'");
+                FileUtils.copyFile(file, new File(incrementRelease + filePath));
+            }
+            else {
+                getLog().debug("Mkdir '" + filePath + "'");
+                FileUtils.forceMkdir(new File(incrementRelease + filePath));
+            }
+        }
+        else{
+            getLog().warn("'"+outputDirectory.getPath()+filePath+"does not exist");
         }
     }
 
+    private boolean filterRepeatFile(String relativePath){
+        for (IncrementFileModel fileModel:incrementFiles) {
+            if (fileModel.getRelativePath().equals(relativePath)){
+                return false;
+            }
+        }
+        return  true;
+    }
 }
