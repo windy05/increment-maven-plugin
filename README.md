@@ -1,9 +1,11 @@
 # maven-release-increment
 根据maven-scm-plugin的diff命令形成比对文件（outputFile），maven-war-plugin生成打包文件夹（webappDirectory），筛选出需要的增量更新文件。
+基于命令行完成版本差异比对，本地必须安装相关scm命令行工具。
 
 
 Getting Started
 ---------------
+
 clone 源码 执行mvn install。
 
 本地项目添加插件，pom文件配置如下
@@ -45,10 +47,10 @@ clone 源码 执行mvn install。
 	    </executions>
 </plugin>
 ```
-+ connection：版本库地址(支持svn，git等scm)
++ connection：版本库地址(支持svn，git等scm http://maven.apache.org/components/scm/matrix.html)
 + startScmVersion：比对开始提交版本号
 
-具体配置可参考maven-scm-plugin与maven-war-plugin官方配置
+具体配置可参考maven-scm-plugin（http://maven.apache.org/scm/maven-scm-plugin/index.html）与maven-war-plugin官方配置
 
 执行 mvn clean package 即可。
 
