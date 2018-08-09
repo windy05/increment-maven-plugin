@@ -50,7 +50,9 @@ clone 源码 执行mvn install。
 + connection：版本库地址(支持svn，git等scm http://maven.apache.org/components/scm/matrix.html)
 + startScmVersion：比对开始提交版本号
 
-具体配置可参考maven-scm-plugin（http://maven.apache.org/scm/maven-scm-plugin/index.html）与maven-war-plugin官方配置
+具体配置可参考：
++ maven-scm-plugin：http://maven.apache.org/scm/maven-scm-plugin/index.html
++ maven-war-plugin 
 
 执行 mvn clean package 即可。
 
@@ -61,3 +63,4 @@ clone 源码 执行mvn install。
 + maven 依赖修改尚无法比对，增量打包
 + maven-scm-plugin 中 outputFile 参数修改需要在 increment-maven-plugin同时修改 outputFile参数
 + maven-war-plugin 中 webappDirectory与warSourceDirectory 同上
++ maven-war-plugin 中 packagingExcludes 无法再增量更新中生效
